@@ -2,8 +2,12 @@
 title: "Resume"
 format:
   html:
-    theme: default
+    theme: flatly
 ---
+
+<iframe width="800" height="800" src="images/KerryMartinResume.pdf">
+</iframe
+
 
 
 

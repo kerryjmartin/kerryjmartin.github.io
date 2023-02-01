@@ -1,14 +1,42 @@
 ---
-title: "Projects"
-listing: 
-  contents: posts
-  sort: "date desc"
-  type: default
-  categories: false
-  sort-ui: false
-page-layout: full
-title-block-banner: true
-
+title: "About"
+about:
+  template: solana
+  image: profile.jpg
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://linkedin.com/in/martin-kj
+      
+    - icon: github
+      text: Github
+      href: https://github.com/kerryjmartin
 ---
+
+# Kerry J. Martin
+
+I use technology, data, and statistics to coordinate and facilitate research in the human health space. This includes finding ways to improve the "real world data" endpoints, improving the hurdles for adoption and data collection logistics, and improving the analytic process to get insights faster.  
+
+*On my work in the wearables space*: The wearables space has grown tremendously for the past 10+ years and there still exist many issues with data integrity, product design, and interpreting the data that hinder wide-scale adoption. My role has largely been in identifying these issues and coming up with solutions that help research and clinical teams get the data they need to fully utilize the data coming from their users.  
+
+## Experience
+
+**Director of Science & Research Scientist**  
+*Biostrap* (2021-present)
+
+## Education
+
+**Ph.D. Exercise Physiology**  
+*University of North Carolina at Greensboro*
+
+**M.A. Exercise Physiology**  
+*University of North Carolina at Chapel Hill*
+
+**B.S. Health & Exercise Science**  
+*University of North Carolina at Greensboro*
+
+
+
+
 
 

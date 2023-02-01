@@ -5,14 +5,15 @@ website:
   title: "KJM Portfolio"
   navbar:
     right:
-      - about.qmd
+      - index.qmd
       - icon: github
         href: https://github.com/kerryjmartin
       - icon: linkedin
         href: https://linkedin.com/in/martin-kj
     left:
       - index.qmd
-      - resume
+      - resume.qmd
+      
 format:
   html:
     theme: flatly
