@@ -1,0 +1,38 @@
+---
+title: "About"
+about:
+  template: solana
+  image: profile.jpg
+  links:
+    - icon: linkedin
+      text: LinkedIn
+      href: https://linkedin.com/in/martin-kj
+      
+    - icon: github
+      text: Github
+      href: https://github.com/kerryjmartin
+---
+
+# Kerry J. Martin
+
+I use technology, data, and statistics to understand 
+
+## Experience
+
+**Director of Science & Research Scientist**  
+*Biostrap* (2021-present)
+
+## Education
+
+**Ph.D. Exercise Physiology**  
+*University of North Carolina at Greensboro*
+
+**M.A. Exercise Physiology**  
+*University of North Carolina at Chapel Hill*
+
+**B.S. Health & Exercise Science**  
+*University of North Carolina at Greensboro*
+
+
+
+
