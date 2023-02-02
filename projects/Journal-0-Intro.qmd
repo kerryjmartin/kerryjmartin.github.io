@@ -1,0 +1,158 @@
+---
+title: "Physiology Journal Intro"
+date: "02/01/2023"
+format:
+  html:
+    theme: default
+---
+
+```{r, include = F}
+library(tidyverse)
+library(gt)
+df <- read.csv('../data/biostrap_journal_combined.csv') %>% 
+  mutate(efficiency = efficiency*100) %>% 
+  filter(total_sleep < 1000)
+
+exercise <- read.csv('../data/parsed_json_exercise.csv') %>% 
+  filter(duration < 7*3600)
+
+daily_exercise_summary <- exercise %>% 
+     mutate(
+    duration = duration/60,
+    date = as.Date(datetime),
+    heartbeats = ifelse((duration)*avg_hr > 0,(duration)*avg_hr,NA), 
+    duration_for_avg_hr = ifelse(avg_hr > 0, duration, NA) # to not count duration towards avg_hr if there is no HR
+    ) %>% 
+    filter(duration < 7*3600) %>% 
+    group_by(date) %>% 
+    summarize(
+      duration = sum(duration, na.rm = T),
+      distance = sum(distance, na.rm = T),
+      heartbeats = sum(heartbeats, na.rm = T),
+      duration_for_avg_hr = sum(duration_for_avg_hr,na.rm = T)
+    ) %>% 
+    transmute(date, duration, distance, avg_hr = (heartbeats/duration_for_avg_hr))
+
+```
+
+# A study of my personal health and exercise data  
+
+Health and wellness tracking has increased substantially over the years. I wanted to do a demonstration of some insights that I can gain from my own personal data.  
+
+## Why?  
+While wearables are fairly ubiquitous, many individuals are using them speculatively. I often hear from people using devices that track health and sleep something to the effect of: "I notice than that when I do [some habit], I see a big change in [some sleep/health metric]."  
+
+This is great to hear, as many people are getting inspired to correlate habits with health, but the process could be improved. The most important parts of this are:  
+1. Being able to use data to back up these claims and control for other occurrences.  
+2. Being able to quantify *how much* something is impacted and if it is *meaningful* (both clinically and statistically).  
+
+## The data  
+
+There were two main sources of data, dating from April 14, 2021 to January 31, 2023:  
+- **Physiological**: *Sleep session only* physiological parameters (i.e. sleep average HRV, amount of deep sleep, etc.)  
+- **Exercise**: All of my swims, bike rides, and runs were recorded using one of three GPS-based devices and then aggregated through Strava, Golden Cheetah, and some custom Python scripts to process the activities the way I wanted. It is important to note that all other physical activity was *not* included, which means things like dog walks (~3/day), errands, standing at my standing desk, etc., which should *not* be discredited.  
+
+This is meant to be a representative, feasible approach, which replicates data that would be relatively easy to collect via APIs in a central app. More data *could* be had, but would require more user-related input and thus, less overall compliance. A short period was used to address some of these short-comings, and more studies will be done to address even more short-comings.  
+
+## Journal Subset  
+
+For a period of 72 days, I kept a journal, with the goal to see how much information a quick (< 1 min. to complete) questionnaire could add to contextualize more of the data.  
+
+These questions included questions about:  
+- the amount and timing of coffee, alcohol, and sex  
+- the nature of snacking before bed  
+- feedback about how my workouts felt  
+- nutrition quality/quantity and supplements  
+- other miscellaneous tags (COVID, illness, injury, travel, conflict, etc.)  
+
+## Profile  
+
+There will be many posts to follow, but for now, I wanted to set the stage of what the data looks like.  
+
+**Daily Exercise Averages over the entire period**  
+```{r, echo=F, warning=F, error=F, message=F}
+gt(daily_exercise_summary %>% 
+    ungroup() %>% 
+    summarize(
+      "Duration [min]" = round(mean(duration, na.rm=T), 2),
+      "Distance [km]" = round(mean(distance, na.rm = T), 2),
+      "Average HR [bpm]" = round(mean(avg_hr, na.rm = T), 2)
+    ) %>% 
+     pivot_longer(cols = everything(), names_to = "Exercise Metric", values_to = "Value")
+)
+
+```
+
+
+**Nightly Biostrap Averages over the entire period**  
+
+```{r, echo=F, warning=F, error=F, message=F}
+gt(df %>% 
+  transmute(sleep_score,total_sleep,efficiency,avg_hrv,avg_hr,lfhf) %>% 
+  summarize(
+    across(
+      .cols = everything(),
+      .fns = ~ round(mean(.x, na.rm = T),2)
+      )
+    ) %>% 
+  rename("Sleep Score [A.U.]" = sleep_score,
+         "Total Sleep [min]" = total_sleep,
+         "Efficiency [%]" = efficiency,
+         "HR (Sleep Avg. [bpm])" = avg_hr,
+         " HRV (Sleep Avg. [ms])" = avg_hrv,
+         "Lf/Hf (Sleep Avg. [A.U.])" = lfhf) %>% 
+  pivot_longer(cols = everything(),
+               names_to = 'Biostrap Variable',
+               values_to = 'Value')
+  )
+```
+
+**Longitudinal Data**
+
+```{r, message=F,warning=F,error=F,echo=F}
+
+print(
+  daily_exercise_summary %>%
+    pivot_longer(
+      cols = c(duration,distance,avg_hr),
+      values_to = "value",
+      names_to = "variable"
+    ) %>% 
+    mutate(variable = factor(variable, levels = c("duration","distance","avg_hr"), labels = c("Daily\nDuration\n[min]","Daily\nDistance\n[km]","Daily\nAvg. HR\n[bpm]"))) %>% 
+    ggplot(aes(x = date, y = value))+
+      theme_bw()+
+      geom_point(size = .75, alpha = .5)+
+      geom_smooth(se = F, color = 'black', size = .75)+
+      facet_grid(variable~.,scales = "free")+
+      labs(
+        title = "Exercise data",
+        x = "Date",
+        y = NULL
+      )
+)
+
+print(
+  df %>% 
+    mutate(date = as.Date(date)) %>% 
+    pivot_longer(
+      cols = c(sleep_score,total_sleep,efficiency,avg_hrv,avg_hr,lfhf),
+      values_to = "value",
+      names_to = "variable"
+    ) %>% 
+    mutate(
+      variable = factor(variable, levels = c("avg_hr", "avg_hrv", "efficiency", "lfhf", "sleep_score", "total_sleep"), labels = c("Avg.\nHR", "Avg.\nHRV", "Efficiency","Lf/HF\nRatio", "Sleep\nScore","Total\nSleep"))
+    ) %>% 
+  ggplot(aes(x = date, y = value))+
+    theme_bw()+
+    geom_point(size = 0.75, alpha = 0.5)+
+    geom_smooth(se = F, color = 'black', size = .75)+
+    facet_grid(variable~.,scales = "free")+
+      labs(
+        title = "Biostrap data",
+        x = "Date",
+        y = NULL
+      )
+)
+
+```
+

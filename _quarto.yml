@@ -1,17 +1,18 @@
 project:
   type: website
+  output-dir: docs
   
 website:
   title: "KJM Portfolio"
   navbar:
     right:
-      - index.qmd
       - icon: github
         href: https://github.com/kerryjmartin
       - icon: linkedin
         href: https://linkedin.com/in/martin-kj
     left:
       - index.qmd
+      - projects.qmd
       - resume.qmd
       
 format:

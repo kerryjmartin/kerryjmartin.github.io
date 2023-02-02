@@ -1,17 +1,12 @@
 ---
 title: "Projects"
 listing: 
-  contents: posts
-  sort: "date desc"
+  contents: projects
+  sort: "date"
   type: grid
   categories: false
   sort-ui: false
 page-layout: full
 title-block-banner: true
-
 ---
-
-```{r}
-
-```
 
