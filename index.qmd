@@ -2,7 +2,7 @@
 title: "About"
 about:
   template: solana
-  image: kerry2022headshot.png
+  image: files/kerry2022headshot.png
   image-shape: round
   links:
     - icon: linkedin
