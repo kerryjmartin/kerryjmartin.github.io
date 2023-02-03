@@ -3,6 +3,8 @@ project:
   output-dir: docs
   
 website:
+  google-analytics: "G-31MMN8RDG6"
+  cookie-consent: true
   title: "KJM Portfolio"
   navbar:
     right:
