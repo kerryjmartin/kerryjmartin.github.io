@@ -4,7 +4,7 @@ project:
   
 website:
   google-analytics: "G-31MMN8RDG6"
-  cookie-consent: true
+  # cookie-consent: true
   title: "KJM Portfolio"
   navbar:
     right:

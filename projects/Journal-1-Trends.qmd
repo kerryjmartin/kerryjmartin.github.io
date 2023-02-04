@@ -1,0 +1,208 @@
+---
+title: "Weekly Trends"
+date: "02/03/2022"
+format:
+  html:
+    theme: default
+---
+
+```{r, include = F}
+library(tidyverse)
+library(ggchicklet)
+
+ex <- read.csv('../data/parsed_json_exercise.csv')
+bio <- read.csv('../data/biostrap_journal_combined.csv')
+
+daily_ex <- ex %>% 
+     mutate(
+    duration = duration/60,
+    date = as.Date(datetime),
+    heartbeats = ifelse((duration)*avg_hr > 0,(duration)*avg_hr,NA), 
+    duration_for_avg_hr = ifelse(avg_hr > 0, duration, NA) # to not count duration towards avg_hr if there is no HR
+    ) %>% 
+    group_by(date) %>% 
+    summarize(
+      duration = sum(duration, na.rm = T),
+      distance = sum(distance, na.rm = T),
+      heartbeats = sum(heartbeats, na.rm = T),
+      duration_for_avg_hr = sum(duration_for_avg_hr,na.rm = T),
+      max_hr = max(max_hr, na.rm = T),
+      custom_trimp = sum(custom_trimp, na.rm = T)
+    ) %>% 
+    transmute(date, duration, distance, avg_hr = (heartbeats/duration_for_avg_hr),max_hr,custom_trimp) %>% 
+  filter(duration < 7*60) 
+  
+sport_pallette <- c("#1E88E5","#D81B60","#24AB36")
+
+```
+
+# Data Exploration  
+
+While there are many ways to model the data, the first step can, and should, always be data exploration. In the instance of health behaviors, it's important to remember something simple, but often forgotten: our behaviors are largely determined by our life. In particular, most people operate on a weekly schedule, typically something resembling 5 days of work and 2 days off of work.   
+
+Thus, it makes sense to start exploring the data on a weekly basis. 
+
+## Day of the Week  
+
+For example, we can start by characterizing what changes occur over a week, since this is how we often set up training schedules and have our life events scheduled.  
+
+Below is a demonstration on the percentage of activities performed on each day of the week. This is roughly analagous to the odds that I would do a particular sport on a particular day.  
+
+**Note**:This does look different during different phases (I was still swimming less during 2021 due to COVID and life), but some patterns still stand out. For example, I almost always do my Tuesday track workout, a Wednesday bike ride, and another run on Thursday (although for awhile I was doing two-a-days with a bike in there as well). Additionally, if I swim, it's pretty much only Mondays or Wednesdays.  
+
+For product builders, AI coaching programmers, or other individuals working with this kind of data, it might be important to keep track of patterns in something like the type of workout completed and encouraging consistency, as many good coaches will attest to the power of consistency in training.  
+
+  
+
+```{r sports by day of week, message=F,warning=F,error=F,echo=F}
+days_of_week <- c('Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday')
+
+ex %>% 
+  rename(Sport = sport) %>% 
+  mutate(
+    Sport = factor(Sport, levels = c("Swim ", "Bike ", "Run ")),
+    date = as.Date(datetime),
+    dow = factor(strftime(date,format = '%A'), levels = days_of_week)
+    ) %>% 
+  filter(
+    Sport %in% c("Bike ","Run ","Swim ")
+    ) %>% 
+  group_by(dow, Sport) %>% 
+  summarize(
+    N = n()
+  ) %>% 
+  ungroup() %>%
+  group_by(dow) %>% 
+  mutate(total_activities = sum(N)) %>% 
+  ggplot(aes(x = dow,y = N/total_activities*100, fill = Sport))+
+    theme_classic()+
+    geom_chicklet(radius = grid::unit(1.5,"mm"), alpha = 0.75)+
+    labs(
+      x = "Day of the Week",
+      y = "Percent of Each Activity Type for Each Day (%)"
+    ) + 
+    theme(
+      legend.position = "none"
+    ) + 
+  scale_fill_manual(values = sport_pallette) + 
+  facet_grid(Sport~.)
+
+```
+
+This next plot breaks down the distribution of when I typically work out each day. Again, there were lots of different factors that changed over the entire window, but it typically looks like I prefer to work out after work on Mon/Tues/Fri, maybe before work on Wed/Thurs (typically in the summer when it's warmer), and morning on the weekends.  
+
+Some smart watch users might notice that this might be why they get the "You're usually active by now" or similar. More importantly, as a later blog post will cover, this is a potentially important factor to consider when modeling training and recovery, as proximity before bed may be an important factor on sleep quality.  
+
+```{r,  message=F,warning=F,error=F,echo=F}
+library(hms)
+
+ex %>% 
+  mutate(datetime = as.POSIXct(datetime, '%Y-%m-%d %H:%M:%S%z'),
+         day_hr = as.hms(as.hms(datetime))/3600+4,
+         dow = strftime(datetime, '%A'),
+         dow = factor(dow, levels = rev(days_of_week))) %>% 
+  ggplot(aes(x = day_hr, y = dow, fill = dow))+
+    theme_classic()+
+    geom_violin(color = 'white', alpha = .75)+
+    geom_jitter(alpha = 0.5,height = .2)+
+    labs(
+      x = "Hour of the Day",
+      y = "Day of the Week"
+    ) + 
+  theme(
+    legend.position = "none"
+  )
+
+```
+### Exercise Characteristics  
+
+The next plots show duration, average heart rate, max heart rate, and a custom TRIMP score for each day of the week. It should be noted that I typically do a hard track workout on Tuesdays, do a medium-sized ride on Wednesday, and long runs/rides on the weekends, which all should be explained in the graphs.  
+
+```{r,  message=F,warning=F,error=F,echo=F, fig.height = 9, fig.width=9}
+
+daily_ex %>% 
+  filter(avg_hr > 0) %>% 
+  pivot_longer(
+    cols = c('duration', 'avg_hr', 'max_hr', 'custom_trimp'),
+    names_to = 'var',
+    values_to = 'value'
+  ) %>% 
+  mutate(dow = factor(strftime(date,format = '%A'), levels = days_of_week),
+         var = factor(var, levels = c('duration', 'avg_hr', 'max_hr', 'custom_trimp'), labels = c('Duration\n(Min)', 'Avg. HR\n(bpm)', 'Max HR\n(bpm)', 'Custom TRIMP\n(AU)'))) %>% 
+  ggplot(aes(x = dow,y = value))+  theme_classic()+
+  geom_boxplot(outlier.alpha = 0)+
+  geom_jitter(aes(color=dow), alpha = .2, width = .25)+
+  facet_grid(var~., scales = 'free')+
+  labs(
+    x = "Day of the Week",
+    y = NULL
+  )+
+  theme(
+    legend.position = 'none'
+  )
+
+```
+
+<!-- ```{r,  message=F,warning=F,error=F,echo=F} -->
+<!-- daily_ex %>%  -->
+<!--   filter(avg_hr > 0) %>%  -->
+<!--   mutate(dow = factor(strftime(date,format = '%A'), levels = days_of_week)) %>%  -->
+<!--   ggplot(aes(x = dow,y = avg_hr))+ -->
+<!--   theme_classic()+ -->
+<!--   geom_boxplot(outlier.alpha = 0)+ -->
+<!--   geom_jitter(aes(color=dow), alpha = .33, width = .25)+ -->
+<!--   labs( -->
+<!--     x = "Day of the Week", -->
+<!--     y = "Average. Daily Exercise HR (bpm)", -->
+<!--     subtitle = "Exc. workouts without HR" -->
+<!--   )+ -->
+<!--   theme( -->
+<!--     legend.position = 'none' -->
+<!--   ) -->
+<!-- ``` -->
+
+
+<!-- ```{r,  message=F,warning=F,error=F,echo=F} -->
+<!-- daily_ex %>%  -->
+<!--   filter(max_hr > 0) %>%  -->
+<!--   mutate(dow = factor(strftime(date,format = '%A'), levels = days_of_week)) %>%  -->
+<!--   ggplot(aes(x = dow,y = max_hr))+ -->
+<!--     theme_classic()+ -->
+<!--     geom_boxplot(outlier.alpha = 0)+ -->
+<!--     geom_jitter(aes(color=dow), alpha = .33, width = .25)+ -->
+<!--     labs( -->
+<!--       x = "Day of the Week", -->
+<!--       y = "Daily Exercise Max HR (bpm)", -->
+<!--     subtitle = "Exc. workouts without HR" -->
+<!--     )+ -->
+<!--   theme( -->
+<!--     legend.position = 'none' -->
+<!--   ) -->
+<!-- ``` -->
+
+
+<!-- ```{r,  message=F,warning=F,error=F,echo=F} -->
+<!-- daily_ex %>%  -->
+<!--   filter(custom_trimp > 0) %>%  -->
+<!--   mutate(dow = factor(strftime(date,format = '%A'), levels = days_of_week)) %>%  -->
+<!--   ggplot(aes(x = dow,y = custom_trimp/100))+ -->
+<!--     theme_classic()+ -->
+<!--     geom_boxplot(outlier.alpha = 0)+ -->
+<!--     geom_jitter(aes(color=dow), alpha = .33, width = .25)+ -->
+<!--     labs( -->
+<!--       x = "Day of the Week", -->
+<!--       y = "Daily Exercise Trimp (AU)", -->
+<!--     subtitle = "Exc. workouts without HR" -->
+<!--     )+ -->
+<!--   theme( -->
+<!--     legend.position = 'none' -->
+<!--   ) -->
+
+
+<!-- ``` -->
+## Summary  
+
+While this is just scratching the surface of the data I have, I do think it's important to contextualize this for many scenarios. For example: modeling human behavior and physiological outcomes might make more sense when accounting for someone's routine and behaviors; alternatively, tracking routine might enable better AI coaching and catch deviations in behavior or make better recommendations.   
+
+With this covered, I can move on to some cooler relationships in the data, causal inference, and hopefully a bit of timeseries model discussions. Please send me any questions you have about this data!  
+
