@@ -6,9 +6,12 @@ format:
     theme: default
 ---
 
-```{r}
+<!-- ```{r} -->
 
-ex <- read.csv('../data/)
+<!-- ex <- read.csv('../data/parsed_json_exercise.csv') %>%  -->
+<!--   mutate(date = as.Date(as.POSIXct(datetime))) -->
 
-```
+<!-- bio <- read.csv('../data/biostrap_journal_combined.csv') -->
+
+<!-- ``` -->
 
