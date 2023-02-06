@@ -1,0 +1,14 @@
+---
+title: "Seasonality"
+date: "02/05/2023"
+format:
+  html:
+    theme: default
+---
+
+```{r}
+
+ex <- read.csv('../data/)
+
+```
+
