@@ -1,0 +1,316 @@
+---
+title: "Long-term Trends"
+date: "03/07/2023"
+format:
+  html:
+    theme: default
+---
+
+```{r setup, include = F}
+library(tidyverse)
+
+df <- read.csv("../data/daily_combined.csv") %>% 
+  mutate(date = as.Date(date),
+         email = 'kerry@biostrap.com')
+
+exercise <- read.csv("../data/parsed_json_exercise.csv") %>% 
+  mutate(
+    date = as.Date(as.POSIXct(datetime, "%Y-%m-%d %H:%M:%S-%Z"))
+  )
+
+```
+## Trends  
+
+In my last post, I demonstrated some changes in exercise and physiological metrics over the course of a week, largely dictated by my weekly habits. However, there are some other changes (both voluntary and involuntary) that occur over the course of the year. This brief walk-through shows some of the data longitudinally over the course of my data collection.  
+
+### Health data
+
+To start, I think it's neat to demonstrate my HRV over time, while noting the time that I stopped taking an SNRI July 2021 (a medication that alters CNS activity). Once I stopped taking this medication, my HRV increased fairly dramatically.
+
+*As an aside, I didn't have my data prior to starting this medication, but the data suggest that the medication was blunting my HRV - an interesting occurrence since this medication is used to lower stress. This is relatively inverse of what people associate from HRV, where stress usually lowers HRV.*  
+
+
+```{r SNRI, message=F,warning=F,error = F, echo = F}
+pre_start <- as.Date('2021-04-09')
+pre_stop <- as.Date('2021-07-01')
+
+pre_model <- lm(avg_hrv ~ as.numeric(date-pre_start), df)
+pre_intercept<- pre_model$coefficients[1]
+pre_end <- as.numeric(pre_stop-pre_start)*pre_model$coefficients[2]+pre_model$coefficients[1]
+print(
+  df %>% 
+    filter(date < as.Date("2022-11-01")) %>% 
+  ggplot(aes(x = date, y = avg_hrv))+
+  theme_minimal()+
+  geom_smooth(data = subset(df, date < as.Date(pre_stop)), formula = y~x,method = 'lm', se = T,size = 1.2)+   geom_smooth(data = subset(df, date >= as.Date(pre_stop)), formula = y~x,method = 'lm', se = T,size = 1.2)+
+  geom_point()+
+  geom_vline(xintercept = as.Date('2021-07-01'), color = 'darkred')+
+  labs(
+    x = 'Date',
+    y = 'Sleep Avg. Heart Rate',
+    title = "Longitudinal Changes",
+    subtitle = "After medication cessation"
+  )
+)
+```
+
+Unfortunately, even with 1.5 years of data, this means that I can only really compare July-October across years, but the trends each calendar year are shown below:  
+
+
+```{r, message=F,warning=F,error = F, echo = F}
+
+df %>% 
+  mutate(month = strftime(date, '%B')) %>% 
+  pivot_longer(
+    cols = c("avg_hr", "avg_hrv", "brpm", "spo2"),
+    values_to = 'value',
+    names_to = "name"
+  ) %>% 
+  mutate(
+    Year = strftime(date, '%Y'),
+    month = factor(month, levels = c("January","February","March","April","May","June","July","August","September","October","November","December")),
+    name = factor(name, levels = c("avg_hr", "avg_hrv", "brpm", "spo2"), labels = c("Avg. HR (BPM)", "Avg. HRV (ms)", "Avg. BRPM", "Avg. SpO2 (%)"))
+  ) %>% 
+  ggplot(aes(x = month, y = value, group = year, color = Year))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  facet_grid(name ~ ., scales = 'free')+
+  labs(
+    y = NULL,
+    x = "Month",
+    title = "Physiological Metrics by Month"
+  )+
+  scale_color_manual(values = c('maroon','darkblue'))
+
+```
+
+Of note, I think it's interesting that Respiratory Rate seems to have a similar trend across these months despite no clear pattern in HRV or HR. Additionally, you can see pretty subtle changes over time, but August 2022 stands out to me, which was when I took a 2.5 week international vacation, so it seems that big trips across time zones can impose a good amount of stress, even though it wasn't necessarily perceived as "stress".  
+
+
+To look even broader, having it all laid out kind of illustrates the effect that the SNRI had being larger than any seasonality, although there does appear to be a good bit of fluctuation - I just don't have enough data to know if that is repeatable over a long time. It does stand to reason that there would be a difference between summer and winter, for example, as the weather and its related effects (heat stress, Vitamin D, daylight exposure, etc.) should theoretically affect some of these health variables.  
+
+```{r, message=F,warning=F,error = F, echo = F}
+df %>% 
+  mutate(mon_year = strftime(date, '%b\n%Y')) %>% 
+  pivot_longer(
+    cols = c("avg_hr", "avg_hrv", "brpm", "spo2"),
+    values_to = 'value',
+    names_to = "name"
+  ) %>% 
+  transmute(
+    date,
+    email,
+    value,
+    mon_year = factor(mon_year, levels = c("Apr\n2021","May\n2021","Jun\n2021","Jul\n2021","Aug\n2021","Sep\n2021","Oct\n2021","Nov\n2021","Dec\n2021",
+                                           "Jan\n2022","Feb\n2022","Mar\n2022","Apr\n2022","May\n2022","Jun\n2022","Jul\n2022","Aug\n2022","Sep\n2022","Oct\n2022")),
+    name = factor(name, levels = c("avg_hr", "avg_hrv", "brpm", "spo2"), labels = c("Avg. HR (BPM)", "Avg. HRV (ms)", "Avg. BRPM", "Avg. SpO2 (%)"))
+  ) %>% 
+  na.omit() %>% 
+  ggplot(aes(x = mon_year, y = value, group = email, color = name))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  facet_grid(name ~ ., scales = 'free')+
+  labs(
+    y = NULL,
+    x = "Month",
+    title = "Physiological Metrics Over Time"
+  )+
+  theme(
+    legend.position = 'none'
+  )+
+  scale_color_manual(
+    values = c("darkgreen","green","lightgreen","gray")
+  )
+  
+
+```  
+
+### Sleep Data  
+Quickly covering sleep, I had little to no expectations because I keep a close eye on my exercise and nocturnal physiology - just not looking closely at my sleep. I don't really have a reason why I don't look at it, but the following graph makes me curious to keep an eye on it in the future.  
+
+Particularly, I didn't notice I had quite such a large swing in sleep duration between winter and summer. I could have guessed that waking up pretty early to work out before it gets hot costed me a little bit, but it appears almost an hour. Additionally, over time, it looks like I have been getting better quality sleep ( better efficiency, less awakenings, & deep sleep duration - even when total sleep decreases seasonally). I don't know exactly why, but I do feel that my sleep has improved after finishing grad school in early 2021.  
+
+```{r, message=F,warning=F,error = F, echo = F}
+df %>% 
+  filter(total_sleep < 12*60) %>% 
+  mutate(mon_year = strftime(date, '%b\n%Y')) %>% 
+  pivot_longer(
+    cols = c("total_sleep", "deep_sleep", "efficiency", "arousal_count"),
+    values_to = 'value',
+    names_to = "name"
+  ) %>% 
+  transmute(
+    date,
+    email,
+    value,
+    mon_year = factor(mon_year, levels = c("Apr\n2021","May\n2021","Jun\n2021","Jul\n2021","Aug\n2021","Sep\n2021","Oct\n2021","Nov\n2021","Dec\n2021",
+                                           "Jan\n2022","Feb\n2022","Mar\n2022","Apr\n2022","May\n2022","Jun\n2022","Jul\n2022","Aug\n2022","Sep\n2022","Oct\n2022")),
+    name = factor(name, levels = c("total_sleep", "deep_sleep", "efficiency", "arousal_count"), labels = c("Total Sleep\nDuration (min)", "Deep Sleep\nDuration (min)", "Sleep Efficiency\n(%)", "Awakenings\n(#)"))
+  ) %>% 
+  na.omit() %>% 
+  ggplot(aes(x = mon_year, y = value, group = email, color = name))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  facet_grid(name ~ ., scales = 'free')+
+  labs(
+    y = NULL,
+    x = "Month",
+    title = "Sleep Metrics Over Time"
+  )+
+  theme(
+    legend.position = 'none'
+  )+
+  scale_color_manual(
+    values = c("#540480", "#953ac7", "#c57bed", "gray")
+    )
+
+```   
+
+
+### Exercise Data  
+
+Since we have the exercise data, I think it's worth bringing this up as well. I know that my habits change a good bit based on the seasons, mostly due to extended daylight hours, warmer weather, and overall motivation. Looking at duration first, it appears that I have the lowest daily exercise duration in the winter months, and the warmer months tend to be higher. I should also note that June is reduced due to a bike crash in June 2022, meaning I had to stop exercising as much for the majority of that month.  
+
+
+```{r exercise monthly, message=F,warning=F,error = F, echo = F}
+df %>% 
+  mutate(
+    exercise_duration = replace_na(exercise_duration, 0),
+    month = factor(strftime(date, '%B'),levels = c("January","February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")),
+    Year = factor(strftime(date, '%Y'))
+  ) %>% 
+  filter(year != 2023) %>% 
+  ggplot(aes(x = month, y = exercise_duration, group = Year, color = Year))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  labs(
+    y = "Average Exercise Duration (min)",
+    x = "Month"
+  )+
+  scale_color_manual(values = c('maroon','darkblue','darkgreen'))+
+  theme(axis.text.x = element_text(angle = 45, vjust = .7))
+
+```
+
+```{r exercise by sport monthly, message=F,warning=F,error = F, echo = F}
+exercise %>% 
+  filter(sport %in% c("Swim ", "Bike ", "Run "), duration < 10*3600) %>% 
+  mutate(
+    Sport = factor(sport, levels = c('Swim ', 'Bike ', 'Run ')),
+    month = factor(strftime(date, '%B'),levels = c("January","February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")),
+    Year = strftime(date, '%Y')
+  ) %>% 
+  group_by(month, Sport, Year) %>% 
+  summarize(duration = sum(duration, na.rm = T)) %>% 
+  filter(Year != 2023) %>% 
+  ggplot(aes(x = month, y = duration/60, fill = Sport))+
+  theme_classic()+
+  geom_bar(stat = 'identity')+
+  # geom_errorbar(stat = 'summary', width = 0.25)+
+  labs(
+    y = "Cumulative Monthly Exercise Duration (min)",
+    x = "Month",
+    title = "Total Exercise Each Month by Activity Type"
+  )+
+  scale_fill_manual(values = c('darkblue','darkorange','darkgreen'))+
+  facet_grid(Year ~ .)+
+  theme(axis.text.x = element_text(angle = 45, vjust = .7))
+
+```
+
+Looking at my exercise average heart rate doesn't seem to yield much information, unsurprisingly. Exercise heart rate data is hard to gain insights on without context. For example, if my heart rate goes up in the summer, is it because: I'm less fit for the same workload? I'm equally fit but training harder? I'm equally fit & training the same but I'm training in hotter environments?... The point being that I wouldn't explicitly expect seasonal trends unless many things were held constant.  
+
+```{r exercise hr, message=F,warning=F,error = F, echo = F}
+
+exercise %>% 
+  mutate(
+    Sport = sport,
+    month = factor(strftime(date, '%B'),levels = c("January","February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+  ) %>% 
+  filter(Sport %in% c('Bike ', 'Run ')) %>% 
+  ggplot(aes(x = month, y = avg_hr, group = Sport, color = Sport))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  labs(
+    y = "Average Exercise HR (bpm)",
+    x = "Month",
+    title = "Avg. Exercise Heart Rate by Month"
+  )+
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 45, vjust = .7))+
+  scale_color_manual(values = c('maroon','darkblue'))+
+  facet_grid(Sport ~ ., scales = 'free')
+
+```
+HOWEVER, I can get at some of that. To fully look into that is beyond the scope of this post, but if we just plot a simple graph using pace per heart rate (this was m/s per beat/s, yielding beats per meter), we can get a *very rough* index of efficiency. *PLEASE NOTE: I do not support this for exercise modeling. It is not a very linear relationship or mathematically sound; this is just to get a point across.* Additionally, this is running only, as biking has too many other variables at play with speed.  
+
+When doing this, it appears that I'm most "efficient" during March and October, which makes sense to me. March tends to be when I am on a fitness trend upwards from being less in-shape over the winter, the temperature is usually very pleasant, and the humidity hasn't come in yet; October is when it starts cooling down, the humidity goes away, and I'm usually coming off of racing season.  
+
+
+```{r speed per bpm, message=F,warning=F,error=F,echo=F}
+
+exercise %>% 
+  mutate(
+    Sport = sport,
+    Pace = distance*1000/(duration),
+    month = factor(strftime(date, '%B'),levels = c("January","February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December")),
+    speed_per_hr = Pace/(avg_hr/60)
+  ) %>% 
+  filter(Sport %in% c("Run ")) %>% 
+  ggplot(aes(x = month, y = speed_per_hr, group = Sport, color = Sport))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  labs(
+    y = "Exercise Speed per Heart Rate\n(beat/meter)",
+    x = "Month",
+    title = "Avg. Exercise Speed by Month"
+  )+
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 45, vjust = .7))+
+  scale_color_manual(values = c('maroon','darkblue'))+
+  facet_grid(Sport ~ ., scales = 'free')
+
+
+
+```
+
+For those curious, speed is presented below. The running portion may be more insightful, as I tend to keep my routes and running partner rather consistent. Biking is a much different story, where you can see I vary much more widely, particularly in October where I do a short stint in Cyclocross training/racing, slowing my speed down; it's important to remember thought that I do a number of disciplines from mountain, gravel, road, TT, etc., so average speed isn't particularly insightful in this context.  
+
+```{r avg speed, message=F,warning=F,error=F,echo=F}
+exercise %>% 
+  mutate(
+    Sport = sport,
+    Pace = distance/(duration/3600),
+    month = factor(strftime(date, '%B'),levels = c("January","February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"))
+  ) %>% 
+  filter(Sport %in% c("Bike ", "Run ")) %>% 
+  ggplot(aes(x = month, y = Pace, group = Sport, color = Sport))+
+  theme_classic()+
+  geom_line(stat = 'summary')+
+  geom_errorbar(stat = 'summary', width = 0.25)+
+  labs(
+    y = "Average Exercise Speed (kph)",
+    x = "Month",
+    title = "Avg. Exercise Speed by Month"
+  )+
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 45, vjust = .7))+
+  scale_color_manual(values = c('maroon','darkblue'))+
+  facet_grid(Sport ~ ., scales = 'free')
+
+```
+
+### Summary  
+
+This, along with the last post, is really just meant to illustrate the non-stationarity in health and exercise data. In many regards, the *seasonality* is smaller than expected (i.e. in health and sleep data), but exercise (a habit of sorts) seems obvious we would see some changes based on weather, daylight, etc.  
+
+Another interesting note was before and after the SNRI. I knew that there was a change at the time in my HRV, but I didn't realize how much it had potentially affected my sleep. It was not supposed to be a point of this article, but the signal seemed too big to not address. Unfortunately this may have been what caused my inability to look across seasons effectively, but it happens and represents "real-world data".  
+
+This and the last post about trends are really just an introduction into the data to help visualize what data exists, but I'll start exploring relationships and modeling as we go.  
+

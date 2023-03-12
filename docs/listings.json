@@ -2,9 +2,9 @@
   {
     "listing": "/projects.html",
     "items": [
-      "/projects/Journal-1-Trends.html",
       "/projects/Journal-0-Intro.html",
-      "/projects/Journal-2-Yearly.html"
+      "/projects/Journal-1-Trends.html",
+      "/projects/Journal-2-MonthlyYearly.html"
     ]
   }
 ]
